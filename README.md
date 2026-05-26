@@ -32,6 +32,9 @@ regex, and the repo does not force `LlamaTokenizerFast`. Plain
 `AutoTokenizer.from_pretrained(...)` loads the generic fast tokenizer backend
 and matches the fixed reference tokenizer.
 
+The chat template is kept as `chat_template.jinja`, not embedded in
+`tokenizer_config.json`.
+
 ## Verify
 
 ```bash

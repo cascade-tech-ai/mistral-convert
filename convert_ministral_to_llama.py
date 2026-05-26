@@ -166,9 +166,7 @@ def write_tokenizer_files(source: Path, output: Path) -> None:
     tok_cfg.pop("processor_class", None)
     tok_cfg.pop("tokenizer_class", None)
     tok_cfg.pop("fix_mistral_regex", None)
-    chat_template = source / "chat_template.jinja"
-    if chat_template.exists() and not tok_cfg.get("chat_template"):
-        tok_cfg["chat_template"] = chat_template.read_text(encoding="utf-8")
+    tok_cfg.pop("chat_template", None)
     dump_json(output / "tokenizer_config.json", tok_cfg)
 
 
