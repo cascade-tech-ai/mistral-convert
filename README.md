@@ -27,6 +27,10 @@ Supported source layouts:
 For native consolidated checkpoints, Q/K attention weights are converted with
 the required native-to-HF RoPE permutation.
 
+Tokenizer metadata is written with `fix_mistral_regex: true`, so plain
+`AutoTokenizer.from_pretrained(...)` applies the Transformers Mistral regex fix
+without requiring trainer-specific kwargs.
+
 ## Verify
 
 ```bash

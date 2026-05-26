@@ -132,6 +132,8 @@ def write_tokenizer_files(source: Path, output: Path) -> None:
     tok_cfg = load_json(source / "tokenizer_config.json")
     tok_cfg.pop("processor_class", None)
     tok_cfg["tokenizer_class"] = "LlamaTokenizerFast"
+    # Make plain AutoTokenizer loads apply Transformers' Mistral regex fix.
+    tok_cfg["fix_mistral_regex"] = True
     chat_template = source / "chat_template.jinja"
     if chat_template.exists() and not tok_cfg.get("chat_template"):
         tok_cfg["chat_template"] = chat_template.read_text(encoding="utf-8")
