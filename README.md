@@ -33,7 +33,9 @@ regex, and the repo does not force `LlamaTokenizerFast`. Plain
 and matches the fixed reference tokenizer.
 
 The chat template is kept as `chat_template.jinja`, not embedded in
-`tokenizer_config.json`.
+`tokenizer_config.json`. The converted template removes Mistral's strict
+user/assistant alternation assertion; rendering behavior for valid alternating
+conversations is otherwise unchanged.
 
 ## Verify
 

@@ -23,6 +23,17 @@ FIXED_MISTRAL_REGEX = (
     r"|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*"
     r"|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+"
 )
+ALTERNATION_CHECK_BLOCK = """{#- Checks for alternating user/assistant messages. #}
+{%- set ns = namespace(index=0) %}
+{%- for message in loop_messages %}
+    {%- if message.role == 'user' or (message.role == 'assistant' and (message.tool_calls is not defined or message.tool_calls is none or message.tool_calls | length == 0)) %}
+        {%- if (message['role'] == 'user') != (ns.index % 2 == 0) %}
+            {{- raise_exception('After the optional system message, conversation roles must alternate user and assistant roles except for tool calls and results.') }}
+        {%- endif %}
+        {%- set ns.index = ns.index + 1 %}
+    {%- endif %}
+{%- endfor %}
+"""
 
 
 def parse_args() -> argparse.Namespace:
@@ -157,10 +168,15 @@ def write_fixed_tokenizer_json(source: Path, output: Path) -> None:
 
 def write_tokenizer_files(source: Path, output: Path) -> None:
     write_fixed_tokenizer_json(source, output)
-    for name in ["special_tokens_map.json", "chat_template.jinja"]:
+    for name in ["special_tokens_map.json"]:
         src = source / name
         if src.exists():
             shutil.copy2(src, output / name)
+    chat_template = source / "chat_template.jinja"
+    if chat_template.exists():
+        template = chat_template.read_text(encoding="utf-8")
+        template = template.replace(ALTERNATION_CHECK_BLOCK, "")
+        (output / "chat_template.jinja").write_text(template, encoding="utf-8")
 
     tok_cfg = load_json(source / "tokenizer_config.json")
     tok_cfg.pop("processor_class", None)
