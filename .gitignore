@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+*.pid
+
+# Local copied source snapshots and converted model outputs.
+bf16_source/
+fp8_main_source/
+fp8_reference_model/
+Ministral-3-3B-Instruct-2512-BF16-llama-text/
+Ministral-3-3B-Instruct-2512-FP8-llama-text/
+
+# Large model artifacts, wherever they appear.
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.gguf
