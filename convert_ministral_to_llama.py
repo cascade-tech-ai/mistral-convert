@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, Callable
 
@@ -17,6 +18,11 @@ from safetensors.torch import save_file
 
 DEFAULT_MODEL_ID = "mistralai/Ministral-3-3B-Instruct-2512-BF16"
 LANGUAGE_PREFIX = "language_model."
+FIXED_MISTRAL_REGEX = (
+    r"[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]*[\p{Ll}\p{Lm}\p{Lo}\p{M}]+"
+    r"|[^\r\n\p{L}\p{N}]?[\p{Lu}\p{Lt}\p{Lm}\p{Lo}\p{M}]+[\p{Ll}\p{Lm}\p{Lo}\p{M}]*"
+    r"|\p{N}| ?[^\s\p{L}\p{N}]+[\r\n/]*|\s*[\r\n]+|\s+(?!\S)|\s+"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -109,6 +115,7 @@ def llama_config_from_mistral3(config: dict[str, Any]) -> dict[str, Any]:
         "bos_token_id": 1,
         "eos_token_id": 2,
         "pad_token_id": 11,
+        "transformers_version": installed_transformers_version(),
     }
     if "quantization_config" in config:
         quantization_config = dict(config["quantization_config"])
@@ -123,17 +130,42 @@ def llama_config_from_mistral3(config: dict[str, Any]) -> dict[str, Any]:
     return llama
 
 
+def installed_transformers_version() -> str:
+    try:
+        return version("transformers")
+    except PackageNotFoundError:
+        return "5.0.0"
+
+
+def write_fixed_tokenizer_json(source: Path, output: Path) -> None:
+    src = source / "tokenizer.json"
+    if not src.exists():
+        return
+
+    tokenizer = load_json(src)
+    pre_tokenizer = tokenizer.get("pre_tokenizer")
+    if isinstance(pre_tokenizer, dict):
+        if pre_tokenizer.get("type") == "Sequence":
+            pretokenizers = pre_tokenizer.get("pretokenizers") or []
+            if pretokenizers and pretokenizers[0].get("type") == "Split":
+                pretokenizers[0]["pattern"] = {"Regex": FIXED_MISTRAL_REGEX}
+        elif pre_tokenizer.get("type") == "Split":
+            pre_tokenizer["pattern"] = {"Regex": FIXED_MISTRAL_REGEX}
+
+    dump_json(output / "tokenizer.json", tokenizer)
+
+
 def write_tokenizer_files(source: Path, output: Path) -> None:
-    for name in ["tokenizer.json", "special_tokens_map.json", "chat_template.jinja"]:
+    write_fixed_tokenizer_json(source, output)
+    for name in ["special_tokens_map.json", "chat_template.jinja"]:
         src = source / name
         if src.exists():
             shutil.copy2(src, output / name)
 
     tok_cfg = load_json(source / "tokenizer_config.json")
     tok_cfg.pop("processor_class", None)
-    tok_cfg["tokenizer_class"] = "LlamaTokenizerFast"
-    # Make plain AutoTokenizer loads apply Transformers' Mistral regex fix.
-    tok_cfg["fix_mistral_regex"] = True
+    tok_cfg.pop("tokenizer_class", None)
+    tok_cfg.pop("fix_mistral_regex", None)
     chat_template = source / "chat_template.jinja"
     if chat_template.exists() and not tok_cfg.get("chat_template"):
         tok_cfg["chat_template"] = chat_template.read_text(encoding="utf-8")
